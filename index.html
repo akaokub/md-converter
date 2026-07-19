@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0969da">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="MD Converter">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9Ijk2IiBmaWxsPSIjMDk2OWRhIi8+CiAgPHRleHQgeD0iMjU2IiB5PSIzNDAiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWksc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyODAiIGZvbnQtd2VpZ2h0PSJib2xkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSI+TeKGkzwvdGV4dD4KPC9zdmc+">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9Ijk2IiBmaWxsPSIjMDk2OWRhIi8+CiAgPHRleHQgeD0iMjU2IiB5PSIzNDAiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWksc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyODAiIGZvbnQtd2VpZ2h0PSJib2xkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSI+TeKGkzwvdGV4dD4KPC9zdmc+">
+<link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjogIlRleHQgXHUyMTkyIE1hcmtkb3duIENvbnZlcnRlciIsICJzaG9ydF9uYW1lIjogIk1EIENvbnZlcnRlciIsICJkZXNjcmlwdGlvbiI6ICJcdTBlNDFcdTBlMWJcdTBlMjVcdTBlMDcgVGV4dC9Db2RlIFx1MGU0MFx1MGUxYlx1MGU0N1x1MGUxOSBNYXJrZG93biIsICJzdGFydF91cmwiOiAiLiIsICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLCAiYmFja2dyb3VuZF9jb2xvciI6ICIjZjZmOGZhIiwgInRoZW1lX2NvbG9yIjogIiMwOTY5ZGEiLCAiaWNvbnMiOiBbeyJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCNGJXeHVjejBpYUhSMGNEb3ZMM2QzZHk1M015NXZjbWN2TWpBd01DOXpkbWNpSUhacFpYZENiM2c5SWpBZ01DQTFNVElnTlRFeUlqNEtJQ0E4Y21WamRDQjNhV1IwYUQwaU5URXlJaUJvWldsbmFIUTlJalV4TWlJZ2NuZzlJamsySWlCbWFXeHNQU0lqTURrMk9XUmhJaTgrQ2lBZ1BIUmxlSFFnZUQwaU1qVTJJaUI1UFNJek5EQWlJR1p2Ym5RdFptRnRhV3g1UFNKemVYTjBaVzB0ZFdrc2MyRnVjeTF6WlhKcFppSWdabTl1ZEMxemFYcGxQU0l5T0RBaUlHWnZiblF0ZDJWcFoyaDBQU0ppYjJ4a0lpQjBaWGgwTFdGdVkyaHZjajBpYldsa1pHeGxJaUJtYVd4c1BTSjNhR2wwWlNJK1RlS0drend2ZEdWNGRENEtQQzl6ZG1jKyIsICJzaXplcyI6ICJhbnkiLCAidHlwZSI6ICJpbWFnZS9zdmcreG1sIn1dfQ==">
+
+<title>Text → Markdown Converter</title>
+<style>
+  :root {
+    --bg: #f6f8fa;
+    --panel: #ffffff;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --muted: #656d76;
+    --accent: #0969da;
+    --accent-hover: #0860ca;
+    --code-bg: #f6f8fa;
+    --code-border: #d0d7de;
+    --success: #1a7f37;
+    --danger: #cf222e;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans Thai", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: var(--shadow);
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  header h1 .logo {
+    background: var(--accent);
+    color: #fff;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+  .lang-toggle {
+    display: inline-flex;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 13px;
+  }
+  .lang-toggle button {
+    border: none;
+    background: transparent;
+    padding: 6px 12px;
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .lang-toggle button.active {
+    background: var(--accent);
+    color: #fff;
+  }
+  main {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 16px 24px 12px;
+    max-width: 1600px;
+    margin: 0 auto;
+    flex: 1 1 auto;
+    min-height: 0;            /* allow children to scroll inside flex */
+    overflow: hidden;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;            /* allow inner scroll */
+    overflow-y: auto;         /* panel itself can scroll if content is tall */
+  }
+  .panel h2 {
+    margin: 0 0 4px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .field .hint {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  select, input[type="text"] {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    background: var(--panel);
+    color: var(--text);
+    font-family: inherit;
+  }
+  select:focus, input[type="text"]:focus, textarea:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+    border-color: var(--accent);
+  }
+  textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    resize: vertical;
+    background: var(--code-bg);
+    color: var(--text);
+    border: 1px solid var(--code-border);
+    flex: 0 0 auto;
+  }
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 18px;
+    text-align: center;
+    cursor: pointer;
+    background: var(--code-bg);
+    transition: all 0.15s ease;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .dropzone:hover, .dropzone.dragover {
+    border-color: var(--accent);
+    background: #ddf4ff;
+    color: var(--accent);
+  }
+  .dropzone input[type="file"] { display: none; }
+  .file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 160px;
+    overflow-y: auto;
+  }
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: "SFMono-Regular", Consolas, monospace;
+  }
+  .file-item .name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .file-item .size {
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .file-item .remove {
+    background: none;
+    border: none;
+    color: var(--danger);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 4px;
+    line-height: 1;
+  }
+  .file-item .remove:hover { opacity: 0.7; }
+  .row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .preview {
+    flex: 1 1 auto;
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 6px;
+    padding: 14px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    min-height: 120px;
+    color: var(--text);
+  }
+  /* Output panel: lock actions at bottom, let preview take remaining space */
+  #outputPanel { overflow: hidden; }
+  #outputPanel .preview { flex: 1 1 auto; }
+  #outputPanel .actions,
+  #outputPanel .stats { flex: 0 0 auto; }
+  .preview:empty::before {
+    content: attr(data-placeholder);
+    color: var(--muted);
+    font-style: italic;
+  }
+  .actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    padding: 9px 16px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    background: var(--panel);
+    color: var(--text);
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.12s ease;
+  }
+  .btn:hover { background: var(--code-bg); }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .btn-primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
+  .btn-success {
+    background: var(--success);
+    color: #fff;
+    border-color: var(--success);
+  }
+  .btn-success:hover { opacity: 0.92; }
+  .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+  .stats {
+    font-size: 12px;
+    color: var(--muted);
+    padding: 4px 2px;
+  }
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--text);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.25s ease;
+    z-index: 1000;
+    box-shadow: var(--shadow);
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .toast.error { background: var(--danger); }
+  .toast.success { background: var(--success); }
+  footer {
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    padding: 8px 24px 10px;
+    flex: 0 0 auto;
+  }
+  /* Auto-download toggle */
+  .auto-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+  }
+  .auto-toggle input { margin: 0; cursor: pointer; }
+  .auto-toggle.enabled { color: var(--success); font-weight: 500; }
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  /* small screens */
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; }
+    header { padding: 12px 16px; }
+    main { padding: 12px 16px 16px; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1><span class="logo">M↓</span> <span data-i18n="title">Text → Markdown Converter</span></h1>
+    <div class="header-controls">
+      <label class="auto-toggle" id="autoToggleLabel">
+        <input type="checkbox" id="autoDownload" onchange="onAutoToggle()">
+        <span data-i18n="autoDownload">ดาวน์โหลดอัตโนมัติ</span>
+      </label>
+      <div class="lang-toggle">
+        <button id="lang-th" class="active" onclick="setLang('th')">TH</button>
+        <button id="lang-en" onclick="setLang('en')">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- LEFT: INPUT -->
+    <section class="panel">
+      <h2 data-i18n="inputTitle">อินพุต</h2>
+
+      <div class="field">
+        <label data-i18n="mode">โหมดการแปลง</label>
+        <select id="mode" onchange="onModeChange()">
+          <option value="code"    data-i18n="modeCode">Code Block (ห่อเป็นโค้ด)</option>
+          <option value="auto"    data-i18n="modeAuto">Auto Format (ตรวจจับอัตโนมัติ)</option>
+          <option value="plain"   data-i18n="modePlain">Plain Text (ดิบ)</option>
+          <option value="merge"   data-i18n="modeMerge">Merge Files (รวมหลายไฟล์)</option>
+        </select>
+        <span class="hint" id="modeHint" data-i18n="modeHintCode"></span>
+      </div>
+
+      <div class="field">
+        <label data-i18n="pasteLabel">วาง text / โค้ดตรงนี้</label>
+        <textarea id="input" data-i18n-placeholder="pastePlaceholder" placeholder="วาง text หรือโค้ดที่นี่..." oninput="update()"></textarea>
+      </div>
+
+      <div class="field">
+        <label data-i18n="uploadLabel">หรืออัปโหลดไฟล์</label>
+        <label class="dropzone" id="dropzone">
+          <span data-i18n="dropHint">คลิกเพื่อเลือกไฟล์ หรือลากไฟล์มาวางที่นี่</span>
+          <input type="file" id="fileInput" multiple onchange="onFilesPicked(this.files)">
+        </label>
+        <div class="file-list" id="fileList"></div>
+      </div>
+
+      <div class="row-2">
+        <div class="field">
+          <label data-i18n="langLabel">ภาษาของโค้ด</label>
+          <select id="codeLang">
+            <option value="auto">Auto-detect</option>
+            <option value="">Plain (ไม่ระบุ)</option>
+            <option value="python">Python</option>
+            <option value="javascript">JavaScript</option>
+            <option value="typescript">TypeScript</option>
+            <option value="go">Go</option>
+            <option value="java">Java</option>
+            <option value="c">C / C++</option>
+            <option value="csharp">C#</option>
+            <option value="html">HTML</option>
+            <option value="css">CSS</option>
+            <option value="sql">SQL</option>
+            <option value="json">JSON</option>
+            <option value="bash">Bash / Shell</option>
+            <option value="php">PHP</option>
+            <option value="ruby">Ruby</option>
+            <option value="rust">Rust</option>
+            <option value="yaml">YAML</option>
+            <option value="xml">XML</option>
+            <option value="markdown">Markdown</option>
+          </select>
+        </div>
+        <div class="field">
+          <label data-i18n="filenameLabel">ชื่อไฟล์ขาออก</label>
+          <input type="text" id="filename" value="output.md" oninput="update()">
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: OUTPUT -->
+    <section class="panel" id="outputPanel">
+      <h2 data-i18n="outputTitle">ผลลัพธ์ Markdown</h2>
+      <div class="preview" id="preview" data-placeholder="ผลลัพธ์จะแสดงที่นี่..." data-i18n-placeholder="outputPlaceholder"></div>
+      <div class="stats" id="stats"></div>
+      <div class="actions">
+        <button class="btn btn-primary" id="downloadBtn" onclick="download()">
+          ⬇ <span data-i18n="download">ดาวน์โหลด .md</span>
+        </button>
+        <button class="btn btn-success" onclick="copyToClipboard()">
+          ⧉ <span data-i18n="copy">คัดลอก</span>
+        </button>
+        <button class="btn" onclick="clearAll()">
+          ✕ <span data-i18n="clear">ล้าง</span>
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <footer data-i18n="footer">ทำงานออฟไลน์ 100% · ไม่ส่งข้อมูลออกจากเครื่อง · HTML ไฟล์เดียว</footer>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ============ i18n ============ */
+const I18N = {
+  th: {
+    title: "Text → Markdown Converter",
+    inputTitle: "อินพุต",
+    outputTitle: "ผลลัพธ์ Markdown",
+    mode: "โหมดการแปลง",
+    modeCode: "Code Block (ห่อเป็นโค้ด)",
+    modeAuto: "Auto Format (ตรวจจับอัตโนมัติ)",
+    modePlain: "Plain Text (ดิบ)",
+    modeMerge: "Merge Files (รวมหลายไฟล์)",
+    modeHintCode: "ห่อข้อความทั้งหมดด้วย ```code block```",
+    modeHintAuto: "ตรวจจับ URL, heading, list และส่วนที่เป็น code อัตโนมัติ",
+    modeHintPlain: "ไม่แปลงอะไร เก็บ text ดิบไว้ตามเดิม",
+    modeHintMerge: "รวมหลายไฟล์เป็นก้อนเดียว คั่นด้วยหัวข้อและ ---",
+    autoDownload: "ดาวน์โหลดอัตโนมัติ",
+    autoOn: "เปิดดาวน์โหลดอัตโนมัติแล้ว ⚡",
+    autoOff: "ปิดดาวน์โหลดอัตโนมัติแล้ว",
+    autoDownloaded: "ดาวน์โหลดอัตโนมัติแล้ว ⚡",
+    pasteLabel: "วาง text / โค้ดตรงนี้",
+    pastePlaceholder: "วาง text หรือโค้ดที่นี่...",
+    uploadLabel: "หรืออัปโหลดไฟล์",
+    dropHint: "คลิกเพื่อเลือกไฟล์ หรือลากไฟล์มาวางที่นี่",
+    langLabel: "ภาษาของโค้ด",
+    filenameLabel: "ชื่อไฟล์ขาออก",
+    download: "ดาวน์โหลด .md",
+    copy: "คัดลอก",
+    clear: "ล้าง",
+    outputPlaceholder: "ผลลัพธ์จะแสดงที่นี่...",
+    footer: "ทำงานออฟไลน์ 100% · ไม่ส่งข้อมูลออกจากเครื่อง · HTML ไฟล์เดียว",
+    copied: "คัดลอกไปคลิปบอร์ดแล้ว ✓",
+    downloaded: "ดาวน์โหลดแล้ว ✓",
+    cleared: "ล้างข้อมูลแล้ว",
+    emptyInput: "ยังไม่มีข้อมูล วาง text หรืออัปโหลดไฟล์ก่อน",
+    binarySkipped: "ไฟล์ binary (รูป/PDF/ฯลฯ) จะไม่ถูกอ่าน",
+    tooLarge: "ไฟล์ใหญ่เกินขนาดที่กำหนด ข้ามไฟล์: ",
+    charCount: "ตัวอักษร",
+    lineCount: "บรรทัด",
+    sizeBytes: "ไบต์"
+  },
+  en: {
+    title: "Text → Markdown Converter",
+    inputTitle: "Input",
+    outputTitle: "Markdown Output",
+    mode: "Conversion mode",
+    modeCode: "Code Block",
+    modeAuto: "Auto Format (auto-detect)",
+    modePlain: "Plain Text (raw)",
+    modeMerge: "Merge Files (combine multiple)",
+    modeHintCode: "Wrap all text in a ```code block```",
+    modeHintAuto: "Auto-detect URLs, headings, lists and code sections",
+    modeHintPlain: "No conversion — keep raw text",
+    modeHintMerge: "Combine multiple files into one, separated by headings and ---",
+    autoDownload: "Auto-download",
+    autoOn: "Auto-download ON ⚡",
+    autoOff: "Auto-download OFF",
+    autoDownloaded: "Auto-downloaded ⚡",
+    pasteLabel: "Paste text / code here",
+    pastePlaceholder: "Paste text or code here...",
+    uploadLabel: "Or upload files",
+    dropHint: "Click to choose files, or drag & drop here",
+    langLabel: "Code language",
+    filenameLabel: "Output filename",
+    download: "Download .md",
+    copy: "Copy",
+    clear: "Clear",
+    outputPlaceholder: "Output will appear here...",
+    footer: "100% offline · No data leaves your machine · Single HTML file",
+    copied: "Copied to clipboard ✓",
+    downloaded: "Downloaded ✓",
+    cleared: "Cleared",
+    emptyInput: "Nothing to convert yet. Paste text or upload a file first.",
+    binarySkipped: "Binary files (images/PDF/etc) will not be read",
+    tooLarge: "File too large, skipped: ",
+    charCount: "chars",
+    lineCount: "lines",
+    sizeBytes: "bytes"
+  }
+};
+
+let currentLang = "th";
+
+function setLang(lang) {
+  currentLang = lang;
+  document.documentElement.lang = lang;
+  document.getElementById("lang-th").classList.toggle("active", lang === "th");
+  document.getElementById("lang-en").classList.toggle("active", lang === "en");
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const k = el.getAttribute("data-i18n");
+    if (I18N[lang][k] !== undefined) el.textContent = I18N[lang][k];
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
+    const k = el.getAttribute("data-i18n-placeholder");
+    if (I18N[lang][k] !== undefined) {
+      if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") el.placeholder = I18N[lang][k];
+      else el.setAttribute("data-placeholder", I18N[lang][k]);
+    }
+  });
+  onModeChange();
+  update();
+}
+
+function t(key) { return I18N[currentLang][key] || key; }
+
+/* ============ State ============ */
+const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5MB per file
+const BINARY_EXT = ["png","jpg","jpeg","gif","bmp","ico","webp","svg","pdf","zip","rar","7z","gz","tar","exe","dll","so","dylib","mp3","mp4","avi","mov","wav","flac","ogg","class","jar","pyc","woff","woff2","ttf","otf","eot"];
+const AUTO_DOWNLOAD_DEBOUNCE_MS = 800;
+
+let uploadedFiles = []; // [{name, content, size, lang}]
+let autoDownloadTimer = null;
+let lastAutoDownloadedMd = "";   // avoid re-downloading identical content
+
+/* ============ Mode hint ============ */
+function onModeChange() {
+  const mode = document.getElementById("mode").value;
+  const hintMap = { code: "modeHintCode", auto: "modeHintAuto", plain: "modeHintPlain", merge: "modeHintMerge" };
+  const hintEl = document.getElementById("modeHint");
+  hintEl.textContent = t(hintMap[mode]);
+  update();
+}
+
+/* ============ File upload ============ */
+const dropzone = document.getElementById("dropzone");
+const fileInput = document.getElementById("fileInput");
+
+["dragenter","dragover"].forEach(ev => {
+  dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add("dragover"); });
+});
+["dragleave","drop"].forEach(ev => {
+  dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove("dragover"); });
+});
+dropzone.addEventListener("drop", e => {
+  if (e.dataTransfer && e.dataTransfer.files) onFilesPicked(e.dataTransfer.files);
+});
+
+function isBinaryByName(name) {
+  const ext = (name.split(".").pop() || "").toLowerCase();
+  return BINARY_EXT.includes(ext);
+}
+
+function onFilesPicked(fileList) {
+  const files = Array.from(fileList || []);
+  files.forEach(file => {
+    if (isBinaryByName(file.name)) {
+      toast(t("binarySkipped"), "error");
+      return;
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      toast(t("tooLarge") + file.name, "error");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      uploadedFiles.push({
+        name: file.name,
+        content: String(reader.result || ""),
+        size: file.size,
+        lang: detectLangFromFile(file.name)
+      });
+      renderFileList();
+      update();
+    };
+    reader.onerror = () => toast("Read error: " + file.name, "error");
+    reader.readAsText(file);
+  });
+  // reset input so same file can be re-added
+  fileInput.value = "";
+}
+
+function renderFileList() {
+  const list = document.getElementById("fileList");
+  list.innerHTML = "";
+  uploadedFiles.forEach((f, idx) => {
+    const item = document.createElement("div");
+    item.className = "file-item";
+    item.innerHTML = `
+      <span class="name">📎 ${escapeHtml(f.name)}</span>
+      <span class="size">${formatBytes(f.size)}</span>
+      <button class="remove" title="remove" onclick="removeFile(${idx})">×</button>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function removeFile(idx) {
+  uploadedFiles.splice(idx, 1);
+  renderFileList();
+  update();
+}
+
+/* ============ Language detection ============ */
+const EXT2LANG = {
+  py:"python", pyw:"python",
+  js:"javascript", mjs:"javascript", cjs:"javascript",
+  ts:"typescript", tsx:"typescript", jsx:"javascript",
+  go:"go",
+  java:"java",
+  c:"c", h:"c", cpp:"c", cc:"c", cxx:"c", hpp:"c",
+  cs:"csharp",
+  html:"html", htm:"html",
+  css:"css", scss:"css", sass:"css", less:"css",
+  sql:"sql",
+  json:"json",
+  sh:"bash", bash:"bash", zsh:"bash", bat:"bash", cmd:"bash", ps1:"bash",
+  php:"php",
+  rb:"ruby",
+  rs:"rust",
+  yml:"yaml", yaml:"yaml",
+  xml:"xml", svg:"xml",
+  md:"markdown", markdown:"markdown",
+  kt:"kotlin", kts:"kotlin",
+  swift:"swift",
+  scala:"scala",
+  r:"r",
+  lua:"lua",
+  pl:"perl",
+  dart:"dart",
+  vue:"html"
+};
+
+function detectLangFromFile(name) {
+  const ext = (name.split(".").pop() || "").toLowerCase();
+  return EXT2LANG[ext] || "";
+}
+
+// Heuristic: detect language from code content
+function detectLangFromContent(code) {
+  const lines = code.split(/\r?\n/);
+  const sample = lines.slice(0, 60).join("\n");
+  const score = {
+    python: 0, javascript: 0, typescript: 0, go: 0, java: 0,
+    c: 0, ruby: 0, php: 0, rust: 0, bash: 0, sql: 0, html: 0, css: 0, json: 0
+  };
+  // Python
+  if (/^\s*def\s+\w+\s*\(/m.test(sample)) score.python += 3;
+  if (/^\s*class\s+\w+.*:\s*$/m.test(sample)) score.python += 2;
+  if (/^\s*(import|from)\s+\w/m.test(sample)) score.python += 2;
+  if (/^\s*(if|for|while|else|elif)\s+.+:\s*$/m.test(sample)) score.python += 2;
+  if (/print\s*\(/m.test(sample)) score.python += 1;
+  // JavaScript / TypeScript
+  if (/\b(const|let|var)\s+\w+\s*=/.test(sample)) { score.javascript += 2; score.typescript += 1; }
+  if (/\bfunction\s+\w+\s*\(/.test(sample)) score.javascript += 2;
+  if (/=>\s*[{(]/m.test(sample)) score.javascript += 1;
+  if (/console\.log\s*\(/.test(sample)) score.javascript += 1;
+  if (/:\s*(string|number|boolean|any|void)\b/i.test(sample)) score.typescript += 3;
+  if (/\binterface\s+\w+/.test(sample)) score.typescript += 3;
+  if (/\btype\s+\w+\s*=/.test(sample)) score.typescript += 2;
+  // Go
+  if (/^package\s+\w+/m.test(sample)) score.go += 3;
+  if (/^func\s+\w+/m.test(sample)) score.go += 3;
+  if (/^import\s*\(/m.test(sample)) score.go += 2;
+  if (/:=\s/.test(sample)) score.go += 1;
+  // Java
+  if (/^public\s+(class|interface|enum)\s+\w+/m.test(sample)) score.java += 3;
+  if (/^import\s+[\w.]+;/m.test(sample)) score.java += 2;
+  if (/System\.out\.print/.test(sample)) score.java += 2;
+  // C / C++
+  if (/#include\s*[<"]/.test(sample)) score.c += 3;
+  if (/\bprintf\s*\(/.test(sample)) score.c += 2;
+  if (/\bint\s+main\s*\(/.test(sample)) score.c += 2;
+  // Ruby
+  if (/^\s*def\s+\w+/m.test(sample)) score.ruby += 2;
+  if (/\bend\b\s*$/m.test(sample) && !/:\s*$/.test(sample)) score.ruby += 1;
+  if (/\bputs\s+/.test(sample)) score.ruby += 2;
+  // PHP
+  if (/^<\?php/.test(sample)) score.php += 4;
+  if (/\$\w+\s*=/.test(sample)) score.php += 2;
+  // Rust
+  if (/\bfn\s+\w+/.test(sample)) score.rust += 3;
+  if (/\blet\s+mut\s+/.test(sample)) score.rust += 2;
+  if (/println!\s*\(/.test(sample)) score.rust += 3;
+  // Bash
+  if (/^#!\/(bin\/bash|usr\/bin\/(bash|sh|zsh|env))/.test(sample)) score.bash += 4;
+  if (/^\s*(if|for|while|case)\s+.*;.*then|do|in\s*$/m.test(sample)) score.bash += 1;
+  if (/\$\{?\w+\}?/.test(sample) && /\b(then|fi|esac|done)\b/.test(sample)) score.bash += 2;
+  // SQL
+  if (/\b(SELECT|INSERT|UPDATE|DELETE|FROM|WHERE|CREATE TABLE)\b/i.test(sample)) score.sql += 3;
+  // HTML
+  if (/<\/?(html|head|body|div|span|p|a|img|table|ul|ol|li|h[1-6])\b/i.test(sample)) score.html += 3;
+  // CSS
+  if (/[}]\s*$/.test(sample) && /\{[^}]*\}/.test(sample) && /[:;@#.]/.test(sample)) score.css += 2;
+  // JSON
+  if (/^\s*[{[]/.test(sample) && /"\w+"\s*:/.test(sample)) score.json += 3;
+
+  let best = "", bestScore = 1; // require score >= 1
+  Object.entries(score).forEach(([lang, s]) => {
+    if (s > bestScore) { bestScore = s; best = lang; }
+  });
+  return best;
+}
+
+function resolveLang() {
+  const sel = document.getElementById("codeLang").value;
+  if (sel === "auto") {
+    const mode = document.getElementById("mode").value;
+    let src = document.getElementById("input").value;
+    if (mode === "merge" && uploadedFiles.length > 0) {
+      // for merge mode, language hint comes per-file in mergeFiles()
+      return "___auto___";
+    }
+    if (uploadedFiles.length === 1 && !src.trim()) {
+      return uploadedFiles[0].lang || "";
+    }
+    if (src.trim()) return detectLangFromContent(src);
+    return "";
+  }
+  return sel === "plain-implicit" ? "" : sel;
+}
+
+/* ============ Converters ============ */
+function escapeMdFence(text) {
+  // If content contains a ``` fence, we need a longer fence to wrap safely.
+  let fence = "```";
+  while (text.includes(fence)) fence += "`";
+  return fence;
+}
+
+function toCodeBlock(text, lang) {
+  const fence = escapeMdFence(text);
+  return `${fence}${lang || ""}\n${text.replace(/\s+$/, "")}\n${fence}`;
+}
+
+function autoFormat(text) {
+  if (!text.trim()) return "";
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const out = [];
+  let i = 0;
+  let inParagraph = false;
+
+  const isUrl = (s) => /^https?:\/\/\S+$/i.test(s.trim());
+  const isHeading = (s) => /^\s*#{1,6}\s+\S/.test(s);
+  const isListItem = (s) => /^\s*[-*+]\s+/.test(s) || /^\s*\d+\.\s+/.test(s);
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (trimmed === "") {
+      if (inParagraph) { out.push(""); inParagraph = false; }
+      i++;
+      continue;
+    }
+
+    // URL on its own line -> link
+    if (isUrl(line)) {
+      out.push(`<${trimmed}>`);
+      inParagraph = false;
+      i++;
+      continue;
+    }
+
+    // Already-Markdown heading
+    if (isHeading(line)) {
+      out.push(trimmed);
+      inParagraph = false;
+      i++;
+      continue;
+    }
+
+    // List item
+    if (isListItem(line)) {
+      out.push(line);
+      inParagraph = false;
+      i++;
+      continue;
+    }
+
+    // Plain paragraph line
+    out.push(line);
+    inParagraph = true;
+    i++;
+  }
+  let result = out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return result;
+}
+
+function mergeFiles(textInput) {
+  if (uploadedFiles.length === 0) return textInput.trim();
+  const parts = [];
+  uploadedFiles.forEach((f, idx) => {
+    const num = idx + 1;
+    const header = `## ${num}. ${f.name}`;
+    const content = f.content.replace(/\s+$/, "");
+    const fence = escapeMdFence(content);
+    const lang = document.getElementById("codeLang").value === "auto"
+      ? (f.lang || detectLangFromContent(content))
+      : document.getElementById("codeLang").value;
+    parts.push(`${header}\n\n${fence}${lang || ""}\n${content}\n${fence}`);
+  });
+  // If there's also pasted text, append it as a final block
+  if (textInput.trim()) {
+    const content = textInput.replace(/\s+$/, "");
+    const fence = escapeMdFence(content);
+    const lang = resolveLang();
+    parts.push(`## ${uploadedFiles.length + 1}. ${t("pasteLabel")}\n\n${fence}${lang && lang !== "___auto___" ? lang : ""}\n${content}\n${fence}`);
+  }
+  return parts.join("\n\n---\n\n");
+}
+
+/* ============ Main update ============ */
+function buildMarkdown() {
+  const mode = document.getElementById("mode").value;
+  const rawInput = document.getElementById("input").value;
+  const hasInput = rawInput.trim().length > 0;
+  const hasFiles = uploadedFiles.length > 0;
+
+  if (!hasInput && !hasFiles) return "";
+
+  // In merge mode, files drive output
+  if (mode === "merge") {
+    if (!hasFiles && !hasInput) return "";
+    return mergeFiles(rawInput);
+  }
+
+  // Determine the source text
+  let source = "";
+  if (hasInput) source = rawInput;
+  else if (uploadedFiles.length === 1) source = uploadedFiles[0].content;
+  else if (uploadedFiles.length > 1) source = uploadedFiles.map(f => `## ${f.name}\n\n${f.content}`).join("\n\n---\n\n");
+
+  if (mode === "code") {
+    const lang = resolveLang();
+    const realLang = lang === "___auto___" ? "" : lang;
+    return toCodeBlock(source, realLang);
+  }
+  if (mode === "plain") {
+    return source.replace(/\s+$/, "");
+  }
+  if (mode === "auto") {
+    return autoFormat(source);
+  }
+  return source;
+}
+
+function update() {
+  const md = buildMarkdown();
+  const preview = document.getElementById("preview");
+  preview.textContent = md;
+  // stats
+  const stats = document.getElementById("stats");
+  if (md) {
+    const chars = md.length;
+    const lines = md.split("\n").length;
+    const bytes = new Blob([md]).size;
+    stats.textContent = `${formatNum(lines)} ${t("lineCount")} · ${formatNum(chars)} ${t("charCount")} · ${formatBytes(bytes)}`;
+  } else {
+    stats.textContent = "";
+  }
+  // disable download if empty
+  document.getElementById("downloadBtn").disabled = !md;
+
+  // schedule auto-download if enabled (debounced)
+  scheduleAutoDownload(md);
+}
+
+function onAutoToggle() {
+  const checkbox = document.getElementById("autoDownload");
+  document.getElementById("autoToggleLabel").classList.toggle("enabled", checkbox.checked);
+  toast(checkbox.checked ? t("autoOn") : t("autoOff"), checkbox.checked ? "success" : "");
+  if (checkbox.checked) {
+    // If there's already content, kick off one immediately
+    const md = buildMarkdown();
+    if (md) scheduleAutoDownload(md, 0);
+  } else {
+    clearTimeout(autoDownloadTimer);
+  }
+}
+
+function scheduleAutoDownload(md, delay) {
+  if (!document.getElementById("autoDownload").checked) return;
+  clearTimeout(autoDownloadTimer);
+  const wait = (delay === undefined) ? AUTO_DOWNLOAD_DEBOUNCE_MS : delay;
+  autoDownloadTimer = setTimeout(() => {
+    // only fire if content is non-empty AND changed since last auto-download
+    if (md && md !== lastAutoDownloadedMd) {
+      lastAutoDownloadedMd = md;
+      doDownload(md, t("autoDownloaded"));
+    }
+  }, wait);
+}
+
+/* ============ Actions ============ */
+function getOutputName() {
+  let name = (document.getElementById("filename").value || "").trim();
+  if (!name) name = "output";
+  if (!/\.md$/i.test(name)) name += ".md";
+  return name;
+}
+
+function download() {
+  const md = buildMarkdown();
+  if (!md) { toast(t("emptyInput"), "error"); return; }
+  doDownload(md, t("downloaded") + " " + getOutputName());
+}
+
+function doDownload(md, toastMsg) {
+  if (!md) return;
+  const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = getOutputName();
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+  if (toastMsg) toast(toastMsg, "success");
+}
+
+async function copyToClipboard() {
+  const md = buildMarkdown();
+  if (!md) { toast(t("emptyInput"), "error"); return; }
+  try {
+    await navigator.clipboard.writeText(md);
+    toast(t("copied"), "success");
+  } catch (e) {
+    // Fallback for non-secure contexts
+    const ta = document.createElement("textarea");
+    ta.value = md;
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); toast(t("copied"), "success"); }
+    catch (e2) { toast("Copy failed", "error"); }
+    document.body.removeChild(ta);
+  }
+}
+
+function clearAll() {
+  document.getElementById("input").value = "";
+  uploadedFiles = [];
+  renderFileList();
+  update();
+  toast(t("cleared"));
+}
+
+/* ============ Helpers ============ */
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+function formatBytes(n) {
+  if (n < 1024) return n + " B";
+  if (n < 1024*1024) return (n/1024).toFixed(1) + " KB";
+  return (n/1024/1024).toFixed(2) + " MB";
+}
+function formatNum(n) { return n.toLocaleString(); }
+
+let toastTimer = null;
+function toast(msg, type) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = "toast show" + (type ? " " + type : "");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = "toast"; }, 2600);
+}
+
+/* ============ Init ============ */
+setLang("th");
+// expose for inline handlers
+window.setLang = setLang;
+window.onModeChange = onModeChange;
+window.onFilesPicked = onFilesPicked;
+window.removeFile = removeFile;
+window.update = update;
+window.download = download;
+window.copyToClipboard = copyToClipboard;
+window.clearAll = clearAll;
+window.onAutoToggle = onAutoToggle;
+</script>
+
+<script>
+// PWA: Register Service Worker for offline use
+(function() {
+  if ('serviceWorker' in navigator) {
+    // Create SW from blob (no external file needed)
+    const swCode = `
+      const CACHE = 'md-converter-v1';
+      self.addEventListener('install', e => {
+        self.skipWaiting();
+      });
+      self.addEventListener('activate', e => {
+        e.waitUntil(self.clients.claim());
+      });
+      // Cache-first strategy (works for single-file app)
+      self.addEventListener('fetch', e => {
+        if (e.request.method !== 'GET') return;
+        e.respondWith(
+          caches.match(e.request).then(cached => {
+            return cached || fetch(e.request).then(resp => {
+              const clone = resp.clone();
+              caches.open(CACHE).then(c => c.put(e.request, clone));
+              return resp;
+            }).catch(() => cached);
+          })
+        );
+      });
+    `;
+    const blob = new Blob([swCode], {type: 'application/javascript'});
+    const swUrl = URL.createObjectURL(blob);
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register(swUrl).catch(err => console.log('SW reg failed:', err));
+    });
+  }
+})();
+</script>
+</body>
+</html>
