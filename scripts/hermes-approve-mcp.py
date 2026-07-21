@@ -542,3 +542,148 @@ class TelegramClient:
         """Long-poll for updates. Returns ``[]`` if no updates."""
         result = self._call("getUpdates", {"offset": offset, "timeout": timeout})
         return list(result) if result else []
+
+
+class TelegramPoller(threading.Thread):
+    """Daemon thread: long-polls getUpdates and dispatches callback_query events.
+
+    On each iteration, calls ``get_updates(offset=last+1, timeout=30)``. For
+    each update that contains a ``callback_query``, the dispatcher performs the
+    allow/deny resolution flow:
+
+    1. Authorization: ``from.id`` must be in ``config.allowed_user_ids``.
+    2. Format check: ``parse_callback(data)`` must succeed.
+    3. Liveness: ``store.is_pending(req_id)`` must be True.
+    4. Atomic resolve via ``store.set_resolution(...)``.
+    5. ``answerCallbackQuery`` toast + ``editMessageText`` to remove buttons.
+
+    Offset persistence: after each non-empty batch, writes ``state_dir /
+    state.json`` with ``{"last_update_id": N, "last_heartbeat_at": iso}``.
+    On boot, reads this file (defaulting to 0 on any error) so the first poll
+    is ``offset = last+1``.
+    """
+
+    def __init__(
+        self,
+        client: TelegramClient,
+        store: PendingStore,
+        config: Config,
+    ) -> None:
+        super().__init__(daemon=True, name="telegram-poller")
+        self._client = client
+        self._store = store
+        self._config = config
+        self._stop_flag = threading.Event()
+        self._state_file = config.state_dir / "state.json"
+        self._last_update_id = self._load_last_update_id()
+        self.last_call_at: datetime | None = None
+        self.last_error: str | None = None
+
+    def _load_last_update_id(self) -> int:
+        """Return persisted offset from state.json, or 0 on any error."""
+        if not self._state_file.exists():
+            return 0
+        try:
+            data = json.loads(self._state_file.read_text(encoding="utf-8"))
+            return int(data.get("last_update_id", 0))
+        except (json.JSONDecodeError, ValueError, OSError):
+            return 0
+
+    def _save_state(self, last_update_id: int) -> None:
+        """Atomically write state.json (tmp + replace)."""
+        tmp = self._state_file.with_suffix(".json.tmp")
+        tmp.write_text(
+            json.dumps(
+                {
+                    "last_update_id": last_update_id,
+                    "last_heartbeat_at": _iso_now(),
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        tmp.replace(self._state_file)
+
+    def stop(self) -> None:
+        """Request shutdown. Returns immediately; the loop exits on next tick."""
+        self._stop_flag.set()
+
+    def run(self) -> None:
+        """Main loop: poll → dispatch → persist. Catches all exceptions."""
+        while not self._stop_flag.is_set():
+            try:
+                self.last_call_at = datetime.now(UTC)
+                updates = self._client.get_updates(
+                    offset=self._last_update_id + 1,
+                    timeout=30,
+                )
+                for update in updates:
+                    self._handle_update(update)
+                    self._last_update_id = max(
+                        self._last_update_id,
+                        int(update.get("update_id", self._last_update_id)),
+                    )
+                if updates:
+                    self._save_state(self._last_update_id)
+                self.last_error = None
+            except Exception as e:
+                self.last_error = f"{type(e).__name__}: {e}"
+                # Don't tight-loop on persistent errors; interruptible by stop().
+                self._stop_flag.wait(5.0)
+
+    def _handle_update(self, update: dict) -> None:
+        """Dispatch one update. Authorization happens before id lookup so an
+        unauthorized user can't probe for live ids (no "Expired" toast)."""
+        cq = update.get("callback_query")
+        if not cq:
+            return  # ignore non-callback updates (text messages, etc.)
+        parsed = parse_callback(cq.get("data", ""))
+        cq_id = cq.get("id", "")
+        from_id = (cq.get("from") or {}).get("id")
+        msg = cq.get("message") or {}
+        chat_id = (msg.get("chat") or {}).get("id")
+        message_id = msg.get("message_id")
+
+        # Authorization FIRST: unauthorized users get a toast but no resolution.
+        if from_id not in self._config.allowed_user_ids:
+            self._safe_answer(cq_id, "⛔ Unauthorized")
+            return
+
+        if parsed is None:
+            return  # not our callback format; ignore silently
+
+        req_id, decision = parsed
+        if not self._store.is_pending(req_id):
+            self._safe_answer(cq_id, "⌛ Expired")
+            return
+
+        reason = "user_allowed" if decision == "allow" else "user_denied"
+        ok = self._store.set_resolution(
+            req_id, decision, reason, responded_by=from_id
+        )
+        if not ok:
+            self._safe_answer(cq_id, "⚠️ Already resolved")
+            return
+
+        self._safe_answer(
+            cq_id, "✅ Approved" if decision == "allow" else "❌ Denied"
+        )
+        if chat_id is not None and message_id is not None:
+            req = self._store.get(req_id)
+            if req is not None:
+                try:
+                    self._client.edit_message_text(
+                        chat_id=chat_id,
+                        message_id=message_id,
+                        text=format_resolved(req),
+                        reply_markup=None,  # remove inline buttons
+                    )
+                except TelegramError:
+                    pass  # user may have deleted the message; not fatal
+
+    def _safe_answer(self, cq_id: str, text: str) -> None:
+        """answerCallbackQuery, swallowing TelegramError (best-effort ack)."""
+        try:
+            self._client.answer_callback_query(cq_id, text)
+        except TelegramError:
+            pass
