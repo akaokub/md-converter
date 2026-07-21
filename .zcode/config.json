@@ -1,0 +1,17 @@
+{
+  "mcp": {
+    "servers": {
+      "hermes-approve": {
+        "type": "stdio",
+        "command": "C:\\Users\\Bew\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\python.exe",
+        "args": ["C:\\Users\\Bew\\ZCodeProject\\scripts\\hermes-approve-mcp.py"],
+        "env": {
+          "APPROVE_BOT_ENV": "C:/Users/Bew/ZCodeProject/.secrets/approve-bot.env",
+          "APPROVE_STATE_DIR": "C:/Users/Bew/ZCodeProject/.approve"
+        },
+        "enabled": true,
+        "timeoutMs": 600000
+      }
+    }
+  }
+}
