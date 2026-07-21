@@ -23,6 +23,7 @@ from typing import Any, NamedTuple
 
 import httpx
 from dotenv import load_dotenv
+from mcp.server.fastmcp import FastMCP
 
 # Bangkok timezone (UTC+7) — all display timestamps are shown in this tz.
 _BANGKOK_TZ = timezone(timedelta(hours=7))
@@ -687,3 +688,194 @@ class TelegramPoller(threading.Thread):
             self._client.answer_callback_query(cq_id, text)
         except TelegramError:
             pass
+
+
+# ---------------------------------------------------------------------------
+# MCP server wiring
+#
+# FastMCP() itself doesn't open sockets or start threads at construction time,
+# so instantiating it at import is safe. The poller, by contrast, is started
+# only inside main() — and is also created lazily by _initialize() so test
+# code that monkeypatches the module-level globals doesn't trigger env reads.
+# ---------------------------------------------------------------------------
+mcp = FastMCP("hermes-approve")
+
+# Module-level singletons, populated by _initialize() (or monkeypatched by tests).
+_config: Config | None = None
+_store: PendingStore | None = None
+_client: TelegramClient | None = None
+_poller: TelegramPoller | None = None
+
+
+def _initialize() -> None:
+    """Populate the module-level config/store/client/poller.
+
+    Idempotent — if ``_config`` is already set, this is a no-op. Reads env
+    via :func:`load_config`; raises :class:`ConfigError` on missing/invalid env.
+    """
+    global _config, _store, _client, _poller
+    if _config is not None:
+        return
+    _config = load_config()
+    _store = PendingStore(_config.state_dir)
+    _client = TelegramClient(
+        token=_config.bot_token, bot_api_base=_config.bot_api_base
+    )
+    _poller = TelegramPoller(client=_client, store=_store, config=_config)
+
+
+def _inline_keyboard(req_id: str) -> dict:
+    """Build the 1×2 inline keyboard (Allow / Deny) for a pending request."""
+    return {
+        "inline_keyboard": [[
+            {"text": "✅ Allow", "callback_data": f"ap:{req_id}:allow"},
+            {"text": "❌ Deny", "callback_data": f"ap:{req_id}:deny"},
+        ]]
+    }
+
+
+@mcp.tool()
+def request_approval(
+    action: str,
+    risk: str,
+    summary: str,
+    timeout_seconds: int = 900,
+) -> str:
+    """Request human approval via Telegram. Blocks until decision or timeout.
+
+    Returns JSON with a ``decision`` field (``allow`` / ``deny``) plus audit
+    metadata. Always returns JSON — never raises. On a validation failure
+    returns ``{"error": "validation_failed", "field": ..., "message": ...}``;
+    on a missing-config failure returns ``{"error": "server_misconfigured", ...}``.
+    """
+    err = validate(action, risk, summary, timeout_seconds)
+    if err is not None:
+        return json.dumps(
+            {
+                "error": "validation_failed",
+                "field": err.field,
+                "message": err.message,
+            }
+        )
+
+    if _config is None or _store is None or _client is None:
+        try:
+            _initialize()
+        except ConfigError as e:
+            return json.dumps(
+                {"error": "server_misconfigured", "message": e.message}
+            )
+
+    req = ApprovalRequest(
+        id=gen_id(),
+        action=action,
+        risk=risk,
+        summary=summary,
+        created_at=datetime.now(UTC),
+        timeout_seconds=timeout_seconds,
+        status="pending",
+    )
+    return _run_approval(req)
+
+
+def _run_approval(req: ApprovalRequest) -> str:
+    """Send ``req`` to Telegram, block until resolved or timeout, return JSON.
+
+    Private layer that skips input validation (the public ``request_approval``
+    already did that). Tests use this directly to inject ``timeout_seconds``
+    values below the public 60-second floor.
+    """
+    assert _store is not None and _client is not None and _config is not None
+    event = _store.add(req)
+
+    # Send the message + buttons to every allowed user (typically just one).
+    try:
+        for uid in _config.allowed_user_ids:
+            msg_id = _client.send_message(
+                chat_id=uid,
+                text=format_request(req),
+                reply_markup=_inline_keyboard(req.id),
+            )
+            _store.mark_sent(req.id, msg_id)
+    except TelegramError as e:
+        return json.dumps(
+            {"error": "telegram_send_failed", "message": str(e)}
+        )
+
+    # Block until resolved or timeout. Use monotonic clock for the deadline.
+    deadline = time.monotonic() + req.timeout_seconds
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            # Auto-deny on timeout — exactly one caller wins via set_resolution.
+            _store.set_resolution(req.id, "deny", "timeout", responded_by=None)
+            break
+        if event.wait(timeout=remaining):
+            break  # resolved by poller
+
+    final = _store.get(req.id)
+    if final is None or final.decision is None:
+        # Should not happen — set_resolution always sets decision.
+        return json.dumps({"error": "internal", "message": "request vanished"})
+
+    return _format_result(final)
+
+
+def _format_result(req: ApprovalRequest) -> str:
+    """Render the final-state JSON returned to the agent."""
+    elapsed = 0
+    if req.resolved_at is not None:
+        elapsed = int((req.resolved_at - req.created_at).total_seconds())
+    return json.dumps(
+        {
+            "decision": req.decision,
+            "reason": req.reason,
+            "id": req.id,
+            "responded_by": req.responded_by,
+            "elapsed_seconds": elapsed,
+            "auto": req.reason == "timeout",
+        }
+    )
+
+
+@mcp.tool()
+def ping() -> str:
+    """Health check: server status, poller state, pending count."""
+    alive = _poller.is_alive() if _poller is not None else False
+    return json.dumps(
+        {
+            "status": "ok",
+            "bot_username": "bew_approve_bot",  # static label for now
+            "poller_alive": alive,
+            "pending_count": len(_store.pending_ids()) if _store is not None else 0,
+            "last_getupdate_at": (
+                _iso(_poller.last_call_at)
+                if _poller is not None and _poller.last_call_at
+                else None
+            ),
+            "last_error": _poller.last_error if _poller is not None else None,
+        },
+        indent=2,
+    )
+
+
+def main() -> None:
+    """Entry point: init globals, start poller, run MCP server.
+
+    A ``ConfigError`` from ``_initialize()`` is logged to stderr but does not
+    crash — the server still runs so an operator can call ``ping()`` to see
+    what's wrong.
+    """
+    import sys
+
+    try:
+        _initialize()
+        if _poller is not None:
+            _poller.start()
+    except ConfigError as e:
+        print(f"[hermes-approve] config error: {e.message}", file=sys.stderr)
+    mcp.run()
+
+
+if __name__ == "__main__":
+    main()
