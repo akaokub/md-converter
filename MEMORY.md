@@ -1,6 +1,57 @@
 # Progress Log — Phase 1D-2 (Hermes session memory hook)
 
-Last updated: 2026-07-21 ~17:55 — **Phase 1D-2 closed ✅**
+Last updated: 2026-07-21 ~18:00 — **Phase 1D-2 closed ✅**
+
+---
+
+## 📒 Session Changelog
+
+### 2026-07-21 (17:25 → 18:00) — ปิดงาน Phase 1D-2
+
+**อินพุต**: "อ่านไฟล์ MEMORY.md แล้วมาลุยแก้บั๊ก Phase 1D-2 กันต่อ"
+
+**สิ่งที่ทำ**:
+1. เรียก `superpowers:systematic-debugging` แล้วทำ Phase 1 (root cause) ใหม่ทั้งหมด ไม่เชื่อ note เดิม
+2. ไล่ evidence จริงจาก agent.log, state.db, request_dump, config.yaml, allowlist
+3. พบว่า root cause จริงใน note เดิม ("synthetic payload") **ผิด** — จริงๆ มี 3 bugs:
+   - script ใช้ `HERMES_HOME` (root) หา dumps แต่ dumps อยู่ใต้ `profiles/glm/sessions/`
+   - `MEMORY_FILE` ชี้ไป root profile จะทับ Hermes canonical `memories/MEMORY.md`
+   - gateway register hook `.cmd` เก่า ทั้งที่ config แก้ใหม่
+4. แก้ script: profile-aware path + เขียนแยก `session-notes.md` + strip vision transcript
+5. test ผ่าน payload จริง 2 sessions (text-only + image-with-caption)
+6. restart gateway ด้วย `hermes --accept-hooks gateway restart` → hook re-approved
+7. commit `e34b531` บน branch `phase-1d-2/session-memory-hook` (5 files)
+
+**ผลลัพธ์**:
+- ✅ hook ทำงานจริง เขียนไฟล์ `profiles/glm/memories/session-notes.md`
+- ✅ gateway PID 8256 running, telegram connected, hook allowlisted (no mtime warning)
+- ✅ commit บน branch แยก (ยังไม่ push/merge)
+
+**คำสั่งที่ใช้บ่อย**:
+```bash
+# Verify hook ด้วย payload จริง
+echo '{"event":"on_session_end","session_id":"<REAL_ID>","platform":"telegram"}' | \
+  "C:/HermesHooks/python.exe" "C:/Users/Bew/ZCodeProject/scripts/hermes-session-memory.py"
+
+# Restart gateway + re-approve hooks
+hermes --accept-hooks gateway restart
+
+# ดู hook status
+hermes hooks list
+hermes hooks doctor
+```
+
+**บทเรียน (3 ข้อหลัก)**:
+1. อย่าเชื่อ root cause ใน note เดิม — verify ใหม่กับ evidence ปัจจุบันเสมอ
+2. `HERMES_HOME` env = root, ข้อมูลจริงอยู่ใต้ `profiles/<name>/`
+3. `hermes hooks test` exit=0 ไม่ได้แปลว่า hook ทำงาน — ต้องใช้ payload จริงผ่าน stdin
+
+**ยังไม่ได้ทำ (รอคำสั่ง)**:
+- [ ] push branch + เปิด PR
+- [ ] revoke credentials 8 ตัว (ค้างมานาน)
+- [ ] Phase 2: Custom MCP server Telegram → ZCode approve flow
+
+---
 
 ## ✅ เสร็จแล้วใน Phase 1 ทั้งหมด
 
