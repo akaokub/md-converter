@@ -280,41 +280,9 @@ git commit -m "chore(phase-2): scaffold project structure (pyproject, ruff, giti
   - `gen_id() -> str` — returns 8-char hex string (4 bytes from `secrets.token_hex(4)`)
   - `parse_callback(data: str) -> Optional[tuple[str, str]]` — parses `ap:<id>:<decision>`; returns `(id, decision)` or `None`
 
-- [ ] **Step 1: Write the failing tests for `gen_id`**
+- [ ] **Step 1: Write the conftest with the `ham` fixture**
 
-File: `tests/unit/test_gen_id.py`
-
-```python
-"""Tests for gen_id — short hex ID generator."""
-import re
-
-from scripts.hermes_approve_mcp import gen_id
-
-# hermes-approve-mcp.py has a hyphen in the filename, which isn't a valid
-# Python module name. We import it via importlib in conftest.py instead —
-# see tests/conftest.py for the `ham` fixture that returns the module.
-#
-# This file uses the fixture style: `def test_x(ham): ham.gen_id(...)`.
-
- HEX_RE = re.compile(r"^[0-9a-f]+$")
-
-
-def test_gen_id_length(ham):
-    assert len(ham.gen_id()) == 8
-
-
-def test_gen_id_is_hex(ham):
-    assert HEX_RE.match(ham.gen_id())
-
-
-def test_gen_id_uniqueness(ham):
-    ids = {ham.gen_id() for _ in range(10_000)}
-    assert len(ids) == 10_000  # extremely unlikely to collide at 8 hex chars
-```
-
-(Note: the `ham` fixture is defined in Task 6's `conftest.py`. For this task to run in isolation, create a temporary `tests/conftest.py` with the fixture now — see Step 2. The fixture loads `scripts/hermes-approve-mcp.py` via `importlib.util` because the hyphen in the filename prevents a normal `import`.)
-
-- [ ] **Step 2: Write the conftest with the `ham` fixture**
+The main module lives at `scripts/hermes-approve-mcp.py` — the hyphen makes it un-importable via normal `import`. We load it via `importlib` and expose it as the `ham` fixture (short for "hermes-approve-mcp"). Every test file uses `ham` as a parameter to receive the module.
 
 File: `tests/conftest.py`
 
@@ -343,7 +311,29 @@ def ham():
     return module
 ```
 
-Also fix the syntax error in the Step 1 file (the stray indent before `HEX_RE = re.compile(...)`): remove the leading space so `HEX_RE` is module-level.
+- [ ] **Step 2: Write the failing tests for `gen_id`**
+
+File: `tests/unit/test_gen_id.py`
+
+```python
+"""Tests for gen_id — short hex ID generator."""
+import re
+
+HEX_RE = re.compile(r"^[0-9a-f]+$")
+
+
+def test_gen_id_length(ham):
+    assert len(ham.gen_id()) == 8
+
+
+def test_gen_id_is_hex(ham):
+    assert HEX_RE.match(ham.gen_id())
+
+
+def test_gen_id_uniqueness(ham):
+    ids = {ham.gen_id() for _ in range(10_000)}
+    assert len(ids) == 10_000  # extremely unlikely to collide at 8 hex chars
+```
 
 - [ ] **Step 3: Write the failing tests for `parse_callback`**
 
@@ -420,8 +410,6 @@ from typing import Optional
 
 
 # ID generator: 8 hex chars (4 bytes). Plenty of entropy for single-user scale.
-_ID_RE = re.compile(r"^[0-9a-f]{6,12}$")
-_VALID_DECISIONS = frozenset({"allow", "deny"})
 _CALLBACK_RE = re.compile(r"^ap:([0-9a-f]{6,12}):(allow|deny)$")
 
 
