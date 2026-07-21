@@ -1,10 +1,67 @@
-# Progress Log — Phase 1D-2 (Hermes session memory hook)
+# Progress Log — Phase 1D-2 (Hermes session memory hook) + Phase 2 (Telegram Approve MCP)
 
-Last updated: 2026-07-21 ~18:00 — **Phase 1D-2 closed ✅**
+Last updated: 2026-07-22 ~02:40 — **Phase 2 closed ✅**
+
+---
+
+## 🎯 Phase 2 — Telegram Approve MCP Server (DONE 2026-07-22)
+
+### ไฟล์ที่เกี่ยวข้อง
+| ไฟล์ | หน้าที่ | สถานะ |
+|---|---|---|
+| `scripts/hermes-approve-mcp.py` | MCP server (FastMCP, stdio) — ~880 บรรทัด | ✅ Done |
+| `.secrets/approve-bot.env` | bot token + allowlist (gitignored) | ✅ Done (token ของ @kanbanos_bot) |
+| `.secrets/approve-bot.env.example` | template (tracked) | ✅ Done |
+| `.approve/pending.jsonl` | audit log (runtime) | ✅ 9 entries จาก E2E |
+| `.approve/state.json` | getUpdates cursor (runtime) | ✅ Done |
+| `~/.zcode/cli/config.json` | MCP server registration (user scope) | ✅ Done |
+| `.zcode/config.json` | MCP server registration (workspace scope) | ✅ Done |
+| `AGENTS.md` | บอก agent เมื่อไหร่ควรเรียก `request_approval` | ✅ Done |
+| `tests/unit/` | 35 unit tests (validate, format, parse, config, gen_id) | ✅ Done |
+| `tests/integration/` | 35 integration tests (store, client, poller, request_approval, race) | ✅ Done |
+| `docs/superpowers/specs/2026-07-21-telegram-approve-mcp-design.md` | design spec | ✅ Done |
+| `docs/superpowers/plans/2026-07-21-telegram-approve-mcp.md` | implementation plan (12 tasks) | ✅ Done |
+
+### สถานะปัจจุบัน
+- **bot**: @kanbanos_bot (token อยู่ใน `.secrets/approve-bot.env` เท่านั้น)
+- **tool ที่ ZCode agent มองเห็น**: `hermes-approve_request_approval` + `hermes-approve_ping`
+- **E2E**: M1 (Allow) ✓ M2 (Deny) ✓ M3 (timeout auto-deny) ✓ — ทั้ง 3 scenarios ผ่านจริงบน Telegram
+- **tests**: 70/70 passing, ruff + mypy clean
+- **reviews**: ทุก task review-clean (Critical/Important = 0 ทุก task)
+
+### บทเรียนจากการ implement (12 tasks via subagent-driven development)
+1. **ruff config `target-version=py311` + lint set `UP`** บังคับ `X | None` (ไม่ใช่ `Optional[X]`) และ `datetime.UTC` (ไม่ใช่ `timezone.utc`) — implementer ต้องแปลงจาก plan's verbatim code ทุก task
+2. **Python 3.11 `@dataclass` + importlib-loaded module** ต้อง register module ใน `sys.modules` ก่อน `exec_module` — เพราะ dataclass decorator ต้องเข้าถึง `__module__.__dict__`
+3. **Test race condition ระหว่าง `sendMessage` กับ `getUpdates`**: handler ต้อง return `[]` จาก getUpdates จนกว่า sendMessage จะ capture id เสร็จ — ไม่งั้น callback มาก่อน request อยู่ใน store → "Expired" toast ผิด
+4. **Telegram HTTP 409 Conflict**: เกิดเมื่อมี 2 process เรียก getUpdates พร้อมกัน — แก้ด้วย `deleteWebhook?drop_pending_updates=true` + restart poller
+5. **2 scope config (user + workspace)**: ใส่ไว้ทั้ง `~/.zcode/cli/config.json` และ `<repo>/.zcode/config.json` เผื่อ ZCode client อ่านจาก scope ไหนก่อน
+
+### ยังไม่ได้ทำ (รอคำสั่ง)
+- [ ] revoke credentials 8 ตัว (ค้างจาก Phase 1) + **bot token ของ @kanbanos_bot ที่ leak ในแชต** ⚠️
+- [ ] push branch `phase-2/telegram-approve-mcp` + เปิด PR
+- [ ] merge Phase 1D-2 + Phase 2 เข้า main
+- [ ] Phase 3 (optional): auto-block guardrail hook
+
+### ⚠️ Security note — bot token leaked
+โทเคนของ @kanbanos_bot (`8796795225:...`) ถูกส่งในแชต จึงถือว่า leak เหมือน 8 credentials เดิม — หลังงานเสร็จควร:
+1. `/revoke` ผ่าน @BotFather เพื่อ generate token ใหม่
+2. อัปเดต `.secrets/approve-bot.env` ด้วย token ใหม่
+3. restart ZCode
 
 ---
 
 ## 📒 Session Changelog
+
+### 2026-07-22 (01:00 → 02:40) — ปิดงาน Phase 2
+
+**อินพุต**: "อ่านไฟล์ MEMORY.md แล้วมาลุย Phase2 กันต่อ"
+
+**สิ่งที่ทำ**:
+1. brainstorming → spec (5 sections) → design doc 662 บรรทัด
+2. writing-plans → 12-task TDD plan (3022 บรรทัด, 102 checkboxes)
+3. subagent-driven-development execute ทั้ง 12 tasks — 1 implementer + 1 reviewer ต่อ task
+4. ทุก task review-clean (Critical=0, Important=0)
+5. E2E จริงผ่าน bot @kanbanos_bot ทั้ง 3 scenarios
 
 ### 2026-07-21 (17:25 → 18:00) — ปิดงาน Phase 1D-2
 
