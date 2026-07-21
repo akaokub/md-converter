@@ -10,13 +10,15 @@ Design spec: docs/superpowers/specs/2026-07-21-telegram-approve-mcp-design.md
 from __future__ import annotations
 
 import html
+import json
 import os
 import re
 import secrets
+import threading
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from dotenv import load_dotenv
 
@@ -261,3 +263,140 @@ def load_config() -> Config:
         state_dir=state_dir,
         bot_api_base=os.getenv("APPROVE_BOT_API_BASE", DEFAULT_BOT_API_BASE),
     )
+
+
+def _iso(dt: datetime, add_seconds: int = 0) -> str:
+    """ISO 8601 UTC string. ``dt`` may be tz-aware or naive (assumed UTC).
+
+    If ``add_seconds`` is given, the result is shifted forward by that amount
+    (used to compute ``expires_at`` from ``created_at`` + ``timeout_seconds``).
+    """
+    if add_seconds:
+        dt = dt + timedelta(seconds=add_seconds)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC).isoformat(timespec="seconds")
+
+
+def _iso_now() -> str:
+    """Current UTC time as an ISO 8601 string."""
+    return _iso(datetime.now(UTC))
+
+
+class PendingStore:
+    """Thread-safe store of pending approval requests + audit log writer.
+
+    Backs the poll-loop's view of which approvals are still open. Resolution
+    is atomic across threads: exactly one caller wins per request id.
+    """
+
+    def __init__(self, state_dir: Path) -> None:
+        self._state_dir = state_dir
+        self._state_dir.mkdir(parents=True, exist_ok=True)
+        self._pending_file = state_dir / "pending.jsonl"
+        self._lock = threading.Lock()
+        self._requests: dict[str, ApprovalRequest] = {}
+        self._events: dict[str, threading.Event] = {}
+        self._message_ids: dict[str, int] = {}
+
+    def add(self, req: ApprovalRequest) -> threading.Event:
+        """Register a new pending request.
+
+        Returns the :class:`threading.Event` that will be set when the request
+        is resolved. Raises ``ValueError`` on a duplicate request id.
+        """
+        with self._lock:
+            if req.id in self._requests:
+                raise ValueError(f"duplicate request id: {req.id}")
+            event = threading.Event()
+            self._requests[req.id] = req
+            self._events[req.id] = event
+        self._append_audit(
+            {
+                "event": "created",
+                "id": req.id,
+                "action": req.action,
+                "risk": req.risk,
+                "summary": req.summary,
+                "created_at": _iso(req.created_at),
+                "expires_at": _iso(req.created_at, req.timeout_seconds),
+            }
+        )
+        return event
+
+    def get(self, req_id: str) -> ApprovalRequest | None:
+        with self._lock:
+            return self._requests.get(req_id)
+
+    def is_pending(self, req_id: str) -> bool:
+        with self._lock:
+            return (
+                req_id in self._requests
+                and self._requests[req_id].status == "pending"
+            )
+
+    def pending_ids(self) -> list[str]:
+        with self._lock:
+            return [rid for rid, r in self._requests.items() if r.status == "pending"]
+
+    def mark_sent(self, req_id: str, telegram_message_id: int) -> None:
+        """Record the Telegram message id for a sent request + write ``sent`` audit."""
+        with self._lock:
+            self._message_ids[req_id] = telegram_message_id
+        self._append_audit(
+            {
+                "event": "sent",
+                "id": req_id,
+                "telegram_message_id": telegram_message_id,
+                "sent_at": _iso_now(),
+            }
+        )
+
+    def set_resolution(
+        self,
+        req_id: str,
+        decision: str,
+        reason: str,
+        responded_by: int | None = None,
+    ) -> bool:
+        """Resolve a pending request.
+
+        Returns ``True`` if this caller won the race (i.e. the request existed
+        and was still pending), ``False`` otherwise. The check-and-mutate is
+        lock-guarded so concurrent callers on the same id produce exactly one
+        winner. The Event is set *after* the lock is released so we don't hold
+        the lock while waking a blocked thread.
+        """
+        with self._lock:
+            req = self._requests.get(req_id)
+            if req is None or req.status == "resolved":
+                return False
+            req.status = "resolved"
+            req.decision = decision
+            req.reason = reason
+            req.responded_by = responded_by
+            req.resolved_at = datetime.now(UTC)
+            event = self._events.get(req_id)
+        if event is not None:
+            event.set()
+        self._append_audit(
+            {
+                "event": "resolved",
+                "id": req_id,
+                "decision": decision,
+                "reason": reason,
+                "responded_by": responded_by,
+                "resolved_at": _iso_now(),
+            }
+        )
+        return True
+
+    def _append_audit(self, entry: dict[str, Any]) -> None:
+        """Append one JSON-line audit entry to ``pending.jsonl`` (lock-guarded).
+
+        File append is not atomic on Windows, so we serialize writes under the
+        same lock used for the in-memory state.
+        """
+        with self._lock:
+            with self._pending_file.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
