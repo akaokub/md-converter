@@ -1,6 +1,6 @@
 # Progress Log — Phase 1D-2 (Hermes session memory hook) + Phase 2 (Telegram Approve MCP)
 
-Last updated: 2026-07-22 ~02:40 — **Phase 2 closed ✅**
+Last updated: 2026-07-22 ~03:20 — **Phase 2 merged to main ✅ (PR #1)**
 
 ---
 
@@ -38,9 +38,10 @@ Last updated: 2026-07-22 ~02:40 — **Phase 2 closed ✅**
 
 ### ยังไม่ได้ทำ (รอคำสั่ง)
 - [ ] revoke credentials 8 ตัว (ค้างจาก Phase 1) + **bot token ของ @kanbanos_bot ที่ leak ในแชต** ⚠️
-- [ ] push branch `phase-2/telegram-approve-mcp` + เปิด PR
-- [ ] merge Phase 1D-2 + Phase 2 เข้า main
+- [x] push branch `phase-2/telegram-approve-mcp` + เปิด PR — **PR #1 merged 2026-07-22** (commit `f02cd50` บน main)
+- [x] merge Phase 1D-2 + Phase 2 เข้า main — 19 commits รวมกันใน PR #1
 - [ ] Phase 3 (optional): auto-block guardrail hook
+- [ ] Fast-follow (track จาก code review): Issue 1 (poller self-heal), Issue 2 (text-message reply), Issue 4 (file logging), Issue 5 (ping bot_username)
 
 ### ⚠️ Security note — bot token leaked
 โทเคนของ @kanbanos_bot (`8796795225:...`) ถูกส่งในแชต จึงถือว่า leak เหมือน 8 credentials เดิม — หลังงานเสร็จควร:
