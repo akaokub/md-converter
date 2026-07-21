@@ -712,16 +712,21 @@ def _initialize() -> None:
 
     Idempotent — if ``_config`` is already set, this is a no-op. Reads env
     via :func:`load_config`; raises :class:`ConfigError` on missing/invalid env.
+
+    All four objects are built into locals first and assigned to the globals
+    only after every constructor succeeds — a transient failure in (e.g.)
+    ``PendingStore(state_dir)`` must not leave ``_config`` set with ``_store``
+    still ``None``, or the idempotency guard would short-circuit on the next
+    call and the tool would crash forever.
     """
     global _config, _store, _client, _poller
     if _config is not None:
         return
-    _config = load_config()
-    _store = PendingStore(_config.state_dir)
-    _client = TelegramClient(
-        token=_config.bot_token, bot_api_base=_config.bot_api_base
-    )
-    _poller = TelegramPoller(client=_client, store=_store, config=_config)
+    cfg = load_config()
+    st = PendingStore(cfg.state_dir)
+    cl = TelegramClient(token=cfg.bot_token, bot_api_base=cfg.bot_api_base)
+    pl = TelegramPoller(client=cl, store=st, config=cfg)
+    _config, _store, _client, _poller = cfg, st, cl, pl
 
 
 def _inline_keyboard(req_id: str) -> dict:
