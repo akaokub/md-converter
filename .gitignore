@@ -1,0 +1,24 @@
+# Secrets — never commit
+.secrets/
+
+# Runtime state
+.approve/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+
+# Existing repo artifacts (from earlier phases)
+.backups/
+*.sqlite
+*.db
+downloads/
+tmp_test/
+.playwright-mcp/
+.rag/
+rag_store/
