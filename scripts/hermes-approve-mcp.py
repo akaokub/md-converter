@@ -15,11 +15,13 @@ import os
 import re
 import secrets
 import threading
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, NamedTuple
 
+import httpx
 from dotenv import load_dotenv
 
 # Bangkok timezone (UTC+7) — all display timestamps are shown in this tz.
@@ -400,3 +402,143 @@ class PendingStore:
         with self._lock:
             with self._pending_file.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+class TelegramError(Exception):
+    """Raised when a Telegram API call fails permanently."""
+
+    def __init__(self, method: str, detail: str, status: int | None = None) -> None:
+        super().__init__(f"{method} failed (status={status}): {detail}")
+        self.method = method
+        self.detail = detail
+        self.status = status
+
+
+# Status codes we never retry. 400 = bad request, 401 = unauthorized,
+# 403 = forbidden — retrying won't fix the cause.
+_FATAL_STATUSES = frozenset({400, 401, 403})
+
+
+class TelegramClient:
+    """Thin httpx wrapper for the small subset of Bot API methods we use.
+
+    All public methods retry once on transient errors (network failures,
+    5xx, 429). Status codes in :data:`_FATAL_STATUSES` raise immediately
+    with no retry.
+    """
+
+    def __init__(
+        self,
+        token: str,
+        bot_api_base: str = DEFAULT_BOT_API_BASE,
+        transport: httpx.BaseTransport | None = None,
+        timeout: float = 10.0,
+    ) -> None:
+        self._base = f"{bot_api_base.rstrip('/')}/bot{token}"
+        self._client = httpx.Client(transport=transport, timeout=timeout)
+
+    def _call(self, method: str, payload: dict[str, Any]) -> Any:
+        """Call a Bot API method with 1 retry on transient errors.
+
+        Raises :class:`TelegramError` if the call ultimately fails.
+        """
+        url = f"{self._base}/{method}"
+        last_exc: TelegramError | None = None
+        for attempt in range(2):  # initial + 1 retry
+            try:
+                r = self._client.post(url, json=payload)
+            except httpx.RequestError as e:
+                last_exc = TelegramError(method, f"network: {e}")
+                if attempt == 0:
+                    time.sleep(1)
+                    continue
+                raise last_exc from e
+
+            if r.status_code == 200:
+                body = r.json()
+                if body.get("ok"):
+                    return body["result"]
+                # Telegram-style error: HTTP 200 with ok=False.
+                last_exc = TelegramError(
+                    method, body.get("description", "unknown")
+                )
+                if attempt == 0:
+                    if "retry_after" in body:
+                        time.sleep(float(body["retry_after"]))
+                    else:
+                        time.sleep(1)
+                    continue
+                raise last_exc
+
+            if r.status_code in _FATAL_STATUSES:
+                # Non-retryable: raise immediately.
+                raise TelegramError(
+                    method, f"HTTP {r.status_code}: {r.text}", r.status_code
+                )
+
+            # 5xx / 429 → retry once.
+            last_exc = TelegramError(
+                method, f"HTTP {r.status_code}: {r.text}", r.status_code
+            )
+            if attempt == 0:
+                time.sleep(1)
+                continue
+            raise last_exc
+        # Should be unreachable: loop exits only via return or raise.
+        raise last_exc if last_exc else TelegramError(method, "unreachable")
+
+    def send_message(
+        self,
+        chat_id: int,
+        text: str,
+        reply_markup: dict | None = None,
+    ) -> int:
+        """Send an HTML-formatted message. Returns the new ``message_id``."""
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "HTML",
+        }
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
+        result = self._call("sendMessage", payload)
+        return int(result["message_id"])
+
+    def edit_message_text(
+        self,
+        chat_id: int,
+        message_id: int,
+        text: str,
+        reply_markup: dict | None = None,
+    ) -> None:
+        """Edit the text of an existing message (HTML)."""
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "text": text,
+            "parse_mode": "HTML",
+        }
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
+        self._call("editMessageText", payload)
+
+    def answer_callback_query(
+        self,
+        callback_query_id: str,
+        text: str,
+        show_alert: bool = False,
+    ) -> None:
+        """Acknowledge a callback query (the loading spinner disappears)."""
+        self._call(
+            "answerCallbackQuery",
+            {
+                "callback_query_id": callback_query_id,
+                "text": text,
+                "show_alert": show_alert,
+            },
+        )
+
+    def get_updates(self, offset: int = 0, timeout: int = 30) -> list[dict]:
+        """Long-poll for updates. Returns ``[]`` if no updates."""
+        result = self._call("getUpdates", {"offset": offset, "timeout": timeout})
+        return list(result) if result else []
