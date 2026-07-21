@@ -10,11 +10,15 @@ Design spec: docs/superpowers/specs/2026-07-21-telegram-approve-mcp-design.md
 from __future__ import annotations
 
 import html
+import os
 import re
 import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import NamedTuple
+
+from dotenv import load_dotenv
 
 # Bangkok timezone (UTC+7) — all display timestamps are shown in this tz.
 _BANGKOK_TZ = timezone(timedelta(hours=7))
@@ -189,4 +193,71 @@ def format_resolved(req: ApprovalRequest) -> str:
     end = req.resolved_at or req.created_at
     return base + (
         f"❌ DENIED by {req.responded_by} at {end.astimezone(_BANGKOK_TZ):%H:%M}"
+    )
+
+
+# Default paths/base URLs. STATE_DIR is repo-rooted: scripts/ -> parent = repo.
+DEFAULT_STATE_DIR = Path(__file__).resolve().parent.parent / ".approve"
+DEFAULT_BOT_API_BASE = "https://api.telegram.org"
+
+
+@dataclass
+class Config:
+    """Runtime config parsed from env."""
+
+    bot_token: str
+    allowed_user_ids: set[int]
+    state_dir: Path
+    bot_api_base: str = DEFAULT_BOT_API_BASE
+
+
+class ConfigError(Exception):
+    """Raised when env is missing or malformed."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
+
+
+def load_config() -> Config:
+    """Read env (optionally from APPROVE_BOT_ENV file), validate, return Config."""
+    env_path = os.getenv("APPROVE_BOT_ENV")
+    if env_path:
+        load_dotenv(env_path, override=True)
+
+    token = os.getenv("APPROVE_BOT_TOKEN", "").strip()
+    if not token:
+        raise ConfigError(
+            "APPROVE_BOT_TOKEN is missing. Set it in the environment or in "
+            "the file pointed to by APPROVE_BOT_ENV."
+        )
+
+    uids_raw = os.getenv("TELEGRAM_ALLOWED_USERS", "").strip()
+    if not uids_raw:
+        raise ConfigError(
+            "TELEGRAM_ALLOWED_USERS is missing. Set it to a comma-separated "
+            "list of Telegram user IDs allowed to approve."
+        )
+    allowed: set[int] = set()
+    for chunk in uids_raw.split(","):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        try:
+            allowed.add(int(chunk))
+        except ValueError as exc:
+            raise ConfigError(
+                f"TELEGRAM_ALLOWED_USERS contains non-integer value: {chunk!r}"
+            ) from exc
+    if not allowed:
+        raise ConfigError("TELEGRAM_ALLOWED_USERS parsed to empty set")
+
+    state_dir_str = os.getenv("APPROVE_STATE_DIR", "").strip()
+    state_dir = Path(state_dir_str) if state_dir_str else DEFAULT_STATE_DIR
+
+    return Config(
+        bot_token=token,
+        allowed_user_ids=allowed,
+        state_dir=state_dir,
+        bot_api_base=os.getenv("APPROVE_BOT_API_BASE", DEFAULT_BOT_API_BASE),
     )
